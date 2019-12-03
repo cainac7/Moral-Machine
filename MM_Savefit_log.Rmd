@@ -1,0 +1,94 @@
+---
+title: "MM_Savefit_log"
+author: "Cain"
+date: "26/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+require(ggplot2)
+require(GGally)
+require(reshape2)
+require(lme4)
+require(compiler)
+require(parallel)
+require(boot)
+require(lattice)
+library(nlme)
+library(lmerTest)
+library(multcomp)
+library(mgcv)
+library(effects)
+library(gridExtra)
+library(tidyr)
+library(plyr)
+library(MuMIn)
+library(seg)
+
+setwd("/Users/user/Desktop/Data Science and Society/Thesis/Data")
+```
+
+Fitness Scenario - Response reflects decision to save fit people over less fit people.
+
+```{r Models}
+###Save Fit Scenario
+savefit <- read.csv("df_savefit_logscaled.csv")
+#Baseline
+savefit_base <- glmer(Saved ~ Age + Income + Political_level + Religious_level + Education + Gender + Geo + (1 | Country), data = savefit, family = binomial, control = glmerControl(optimizer = "bobyqa"),
+                        nAGQ = 1)
+summary(savefit_base)
+r.squaredGLMM(savefit_base)
+#Geographic Interactions
+savefit_geoint <- glmer(Saved ~ Age*Geo + Income*Geo + Political_level*Geo + Religious_level*Geo + Education*Geo + Gender*Geo + 
+                                  (1 | Country), data = savefit, family = binomial, control = glmerControl(optimizer = "bobyqa"),
+                                nAGQ = 1)
+
+summary(savefit_geoint)
+r.squaredGLMM(savefit_geoint)
+#Plot Random Effect of Country
+lattice::dotplot(ranef(savefit_base, which = "Country", condVar = TRUE), scales = list(y = list(alternating = 0)))
+```
+
+```{r Continous Variables Interactions}
+#IncomeGeo Interaction
+income.geo.interaction.df <- as.data.frame(Effect(c("Income", "Geo"), savefit_geoint, xlevels = list(Income=seq(min(savefit$Income), max(savefit$Income), 0.1))))
+
+ggplot(data = income.geo.interaction.df, aes(Income, fit, color=Geo), position=position_dodge(width=0.5)) +
+  geom_line(aes(linetype = Geo), size = 2) + geom_ribbon(aes(ymin=lower, ymax=upper, fill=Geo), alpha = 0.3, colour=NA) + labs(title = 'Interaction: Income and Geography for Save Fit Scenario', y = "Save Fit", x = "Income") 
+
+#AgeGeo Interaction
+age.geo.interaction.df <- as.data.frame(Effect(c("Age", "Geo"), savefit_geoint, xlevels = list(Age=seq(min(savefit$Age), max(savefit$Age), 0.1))))
+
+ggplot(data = age.geo.interaction.df, aes(Age, fit, color=Geo), position=position_dodge(width=0.5)) +
+  geom_line(aes(linetype = Geo), size = 2) + geom_ribbon(aes(ymin=lower, ymax=upper, fill=Geo), alpha = 0.3, colour=NA) + labs(title = 'Interaction: Age and Geography for Save Fit Scenario', y = "Save Fit", x = "Age") 
+
+#PoliticalLevel Interaction
+pol.geo.interaction.df <- as.data.frame(Effect(c("Political_level", "Geo"), savefit_geoint, xlevels = list(Political_level=seq(min(savefit$Political_level), max(savefit$Political_level), 0.1))))
+
+ggplot(data = pol.geo.interaction.df, aes(Political_level, fit, color=Geo), position=position_dodge(width=0.5)) +
+  geom_line(aes(linetype = Geo), size = 2) + geom_ribbon(aes(ymin=lower, ymax=upper, fill=Geo), alpha = 0.3, colour=NA) + labs(title = 'Interaction: Political_Level and Geography for Save Fit Scenario', y = "Save Fit", x = "Political_Level") 
+
+#Religious_Level Interaction
+rel.geo.interaction.df <- as.data.frame(Effect(c("Religious_level", "Geo"), savefit_geoint, xlevels = list(Religious_level=seq(min(savefit$Religious_level), max(savefit$Religious_level), 0.1))))
+
+ggplot(data = rel.geo.interaction.df, aes(Religious_level, fit, color=Geo), position=position_dodge(width=0.5)) + geom_line(aes(linetype = Geo), size = 2) + geom_ribbon(aes(ymin=lower, ymax=upper, fill=Geo), alpha = 0.3, colour=NA) + labs(title = 'Interaction: Religious_Level and Geography for Save Fit Scenario', y = "Save Fit", x = "Religious_Level") 
+
+```
+
+```{r Categorical Interactions}
+
+#Gender Interaction
+
+gender.geo.interaction.df <- as.data.frame(Effect(c("Gender", "Geo"), savefit_geoint))
+
+ggplot(data = gender.geo.interaction.df, aes(Gender, fit, group=Geo)) + geom_point(aes(shape = Geo, color = Geo, size =1), position=position_dodge(width=0.5)) + geom_errorbar(aes(ymin=upper, ymax=lower), width = 0.4, position=position_dodge(width=0.5)) + labs(title = 'Interaction between Gender and Geographic Regions for Save Fit Scenario', y = "Save Fit", x = "Gender") 
+
+
+#Education Interaction
+
+education.geo.interaction.df <- as.data.frame(Effect(c("Education", "Geo"), savefit_geoint))
+
+ggplot(data = education.geo.interaction.df, aes(Education, fit, group=Geo)) + geom_point(aes(shape = Geo, color = Geo, size =1), position=position_dodge(width=0.5)) + geom_errorbar(aes(ymin=upper, ymax=lower), width = 0.4, position=position_dodge(width=0.5)) + labs(title = 'Interaction between Education and Geographic Regions for Save Fit Scenario', y = "Save Fit", x = "Education") 
+
+
+```
